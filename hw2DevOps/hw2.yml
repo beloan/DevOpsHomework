@@ -1,0 +1,58 @@
+---
+- name: "Настройка пользователя, SSH и директории"
+  hosts: all
+  become: true
+  vars:
+    username: "devuser"  
+    ssh_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"  
+
+  tasks:
+    - name: "Создать пользователя {{ username }}"
+      user:
+        name: "{{ username }}"
+        groups: "sudo"
+        shell: /bin/bash
+        append: yes
+
+    - name: "Дать права sudo без пароля"
+      lineinfile:
+        path: /etc/sudoers
+        line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: "visudo -cf %s"
+
+    - name: "Создать .ssh директорию"
+      file:
+        path: "/home/{{ username }}/.ssh"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0700"
+
+    - name: "Добавить SSH-ключ"
+      authorized_key:
+        user: "{{ username }}"
+        state: present
+        key: "{{ ssh_key }}"
+
+    - name: "Отключить PasswordAuthentication в SSH"
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication no"
+        state: present
+      notify:
+        - restart sshd
+
+    - name: "Создать директорию в /opt/"
+      file:
+        path: "/opt/{{ username }}_data"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0660"
+
+  handlers:
+    - name: "restart sshd"
+      service:
+        name: sshd
+        state: restarted
