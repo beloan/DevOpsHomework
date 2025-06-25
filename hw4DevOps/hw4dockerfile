@@ -1,0 +1,45 @@
+# Базовый образ Ubuntu 22.04
+FROM ubuntu:22.04
+
+# Указание автора образа
+MAINTAINER belousov_a_e
+
+# Обновление пакетного менеджера и установка необходимых пакетов
+RUN apt-get update && apt-get install -y \
+    nginx \
+    postgresql \
+    postgresql-contrib \
+    && rm -rf /var/lib/apt/lists/*
+
+# Создание рабочей директории
+WORKDIR /var/www/html
+
+# Копирование конфигурации Nginx
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Копирование скрипта инициализации базы данных
+ADD init_db.sh /docker-entrypoint-initdb.d/
+
+# Создание переменных окружения для PostgreSQL
+ENV POSTGRES_USER=admin \
+    POSTGRES_PASSWORD=secret \
+    POSTGRES_DB=myapp
+
+# Создание тома для данных PostgreSQL
+VOLUME /var/lib/postgresql/data
+
+# Создание пользователя для запуска сервисов
+RUN useradd -m appuser && \
+    chown -R appuser:appuser /var/www/html && \
+    chown -R appuser:appuser /var/lib/postgresql
+
+# Переключение на созданного пользователя
+USER appuser
+
+# Открытие портов для Nginx (80) и PostgreSQL (5432)
+EXPOSE 80 5432
+
+# Команда запуска сервисов при старте контейнера
+CMD service postgresql start && \
+    service nginx start && \
+    tail -f /var/log/nginx/access.log
