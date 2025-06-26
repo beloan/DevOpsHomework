@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  web:
+    image: nginx:latest
+    container_name: web_server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-conf:/etc/nginx/conf.d
+      - ./web-content:/usr/share/nginx/html
+    networks:
+      app_net:
+        ipv4_address: 10.10.10.2
+
+  db:
+    image: mysql:8.0
+    container_name: database
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: userpassword
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql-conf:/etc/mysql/conf.d
+    networks:
+      app_net:
+        aliases:
+          - new_db
+          - dev_db
+        ipv4_address: 10.10.10.3
+
+volumes:
+  db_data:
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/28
